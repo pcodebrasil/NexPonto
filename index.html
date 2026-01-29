@@ -10,7 +10,7 @@
 
     <style>
         :root {
-            /* Identidade Visual NexPonto */
+            /* Identidade Visual NexPonto - Variáveis Globais */
             --primary: #FFD700; /* Ouro Taxi - Alta Visibilidade */
             --accent: #ffffff;
             --bg: #000000;
@@ -22,12 +22,13 @@
         }
 
         body {
+            /* Reset básico e tipografia do sistema */
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background: var(--bg); color: var(--accent);
             margin: 0; height: 100vh; display: flex; flex-direction: column;
         }
 
-        /* LOGOTIPO NEXPONTO */
+        /* LOGOTIPO NEXPONTO - Design Tipográfico */
         .brand-logo {
             font-size: 2.2rem;
             font-weight: 800;
@@ -46,19 +47,23 @@
             text-transform: uppercase;
         }
 
-        /* COMPONENTES */
+        /* COMPONENTES DE UI */
+        /* Container principal com scroll independente para simular app */
         #app-container { flex: 1; overflow-y: auto; padding: 20px; }
+        
+        /* Sistema de Gerenciamento de Telas (SPA - Single Page Application) */
         .screen { display: none; }
         .screen.active { display: block; animation: slideUp 0.4s ease-out; }
         @keyframes slideUp { from {transform: translateY(20px); opacity:0} to {transform: translateY(0); opacity:1} }
 
+        /* Botões Padrão Mobile-First (Área de toque otimizada) */
         .btn {
             border: none; padding: 16px; border-radius: 8px;
             font-weight: 700; width: 100%; font-size: 16px;
             margin-bottom: 15px; cursor: pointer; text-transform: uppercase;
             letter-spacing: 1px; transition: transform 0.1s;
         }
-        .btn:active { transform: scale(0.98); }
+        .btn:active { transform: scale(0.98); } /* Feedback tátil visual */
         .btn-primary { 
             background: var(--primary); color: #000; 
             box-shadow: 0 4px 15px rgba(255, 215, 0, 0.15); 
@@ -66,6 +71,7 @@
         .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
         .btn-sm { padding: 8px 12px; font-size: 12px; width: auto; margin: 0; }
 
+        /* Campos de Entrada de Dados */
         .input-field {
             width: 100%; padding: 16px; background: var(--input-bg);
             border: 1px solid #333; border-radius: 8px; color: white;
@@ -73,17 +79,18 @@
         }
         .input-field:focus { outline: none; border-color: var(--primary); background: #2a2a2a; }
 
-        /* CARDS DE CORRIDA */
+        /* CARDS DE CORRIDA - Visualização da Lista */
         .ride-card {
             background: var(--surface); padding: 16px;
             border-radius: 12px; margin-bottom: 12px;
             border-left: 4px solid #333; display: flex;
             justify-content: space-between; align-items: center;
         }
+        /* Indicadores visuais de status por cor */
         .ride-card.status-pending { border-left-color: var(--primary); }
         .ride-card.status-scheduled { border-left-color: var(--scheduled); }
 
-        /* LOADING */
+        /* TELA DE LOADING (Carregamento) */
         #loading {
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: #000; z-index: 99;
@@ -163,13 +170,15 @@
     </div>
 
     <script type="module">
+        // Importação dos SDKs do Firebase via CDN (Sem necessidade de Build Tools)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } 
                from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, Timestamp } 
                from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // Configuração mantida do seu projeto
+        // Configuração de Conexão com o Backend Firebase
+        // TODO: Mantenha estas chaves seguras e restrinja o domínio no console do Google Cloud
         const firebaseConfig = {
             apiKey: "AIzaSyBylSqY9gUtjygPD6X20LQOH0kVg-NRczA",
             authDomain: "agenda-facil-b5542.firebaseapp.com",
@@ -179,56 +188,68 @@
             appId: "1:862816221186:web:e4339102a644f8abf60f1b"
         };
 
+        // Inicialização dos Serviços
         const appInit = initializeApp(firebaseConfig);
         const auth = getAuth(appInit);
         const db = getFirestore(appInit);
-        let currentUser = null;
+        let currentUser = null; // Armazena o usuário logado para uso global
 
+        // Controlador Principal da Aplicação (Singleton Pattern)
         const App = {
+            // Função de Login
             login: async () => {
                 const email = document.getElementById('login-email').value;
                 const pass = document.getElementById('login-pass').value;
                 if(!email || !pass) return alert("Por favor, preencha todos os campos.");
                 
                 try {
+                    // Exibe loading e tenta autenticar no Firebase Auth
                     document.getElementById('loading').style.display = 'flex';
                     await signInWithEmailAndPassword(auth, email, pass);
+                    // O redirecionamento é tratado pelo listener onAuthStateChanged
                 } catch (e) { 
                     alert("Acesso negado: " + e.message); 
                     document.getElementById('loading').style.display = 'none'; 
                 }
             },
 
+            // Função de Logout
             logout: () => signOut(auth),
 
+            // Criação de Nova Corrida (Imediata ou Agendada)
             createRide: async () => {
+                // Coleta de dados do DOM
                 const name = document.getElementById('new-name').value;
                 const dest = document.getElementById('new-dest').value;
                 const val = document.getElementById('new-val').value;
                 const dateInput = document.getElementById('new-time').value;
 
+                // Validação Simples
                 if(!name || !dest || !val) return alert("Preencha os dados da corrida.");
 
                 try {
+                    // Definição do Estado Inicial
                     let status = "pending";
                     let scheduledTimestamp = Timestamp.now(); 
 
+                    // Lógica de Agendamento
                     if(dateInput) {
                         status = "scheduled";
                         scheduledTimestamp = Timestamp.fromDate(new Date(dateInput));
                     }
 
+                    // Escrita no Banco de Dados (Firestore)
                     await addDoc(collection(db, "rides"), {
-                        establishmentId: currentUser.uid,
+                        establishmentId: currentUser.uid, // Vincula ao tenant
                         passengerName: name,
                         destination: dest,
                         value: parseFloat(val),
                         status: status,
-                        createdAt: Timestamp.now(),
-                        scheduledFor: scheduledTimestamp
+                        createdAt: Timestamp.now(), // Data de criação (audit)
+                        scheduledFor: scheduledTimestamp // Data de execução
                     });
 
-                    // Limpa formulário
+                    // Limpeza do Formulário após sucesso
                     document.getElementById('new-name').value = "";
                     document.getElementById('new-dest').value = "";
                     document.getElementById('new-val').value = "";
@@ -237,13 +258,17 @@
                 } catch (e) { console.error(e); alert("Erro ao criar pedido."); }
             },
 
+            // Cancelamento Lógico de Corrida
             cancelRide: async (rideId) => {
                 if(confirm("Cancelar este pedido?")) {
+                    // Apenas atualiza o status, não deleta o registro (segurança de dados)
                     await updateDoc(doc(db, "rides", rideId), { status: "cancelled" });
                 }
             },
 
+            // Listener em Tempo Real (Core do Sistema)
             startRideListener: () => {
+                // Cria uma query complexa: Filtra por Dono + Status Ativo + Ordena por Hora
                 const q = query(
                     collection(db, "rides"),
                     where("establishmentId", "==", currentUser.uid),
@@ -251,24 +276,28 @@
                     orderBy("scheduledFor", "asc")
                 );
 
+                // Websocket Ativo: Qualquer mudança no banco reflete na tela instantaneamente
                 onSnapshot(q, (snapshot) => {
                     const listEl = document.getElementById('rides-list');
-                    listEl.innerHTML = "";
+                    listEl.innerHTML = ""; // Limpa a view para renderizar o estado atual
 
+                    // Feedback visual se lista vazia
                     if(snapshot.empty) {
                         listEl.innerHTML = '<div style="text-align:center; color:#444; margin-top:40px; font-size:0.9rem;">Nenhum pedido ativo no momento.</div>';
                         return;
                     }
 
+                    // Renderização dos Cards
                     snapshot.forEach(docSnap => {
                         const r = docSnap.data();
                         const isScheduled = r.status === 'scheduled';
                         const dateObj = r.scheduledFor.toDate();
                         
-                        // Formatação da Hora
+                        // Formatação da Hora para PT-BR
                         const timeString = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                         const dateString = dateObj.toLocaleDateString();
 
+                        // Construção do HTML do Card
                         const html = `
                             <div class="ride-card status-${r.status}">
                                 <div>
@@ -289,18 +318,22 @@
                 });
             },
 
+            // Verificação de Licença SaaS (Gatekeeper)
             checkLicense: async (user) => {
                 currentUser = user;
-                // Busca de Licença (SaaS)
+                // Busca o documento do estabelecimento para verificar pagamento
                 const docRef = doc(db, "establishments", user.uid);
                 const docSnap = await getDoc(docRef);
 
+                // Regra de Negócio: Deve existir E estar ativo
                 if (docSnap.exists() && docSnap.data().active) {
+                    // Acesso Permitido: Troca telas e inicia listener
                     document.querySelector('#screen-login').classList.remove('active');
                     document.querySelector('#screen-dashboard').classList.add('active');
                     document.getElementById('loading').style.display = 'none';
                     App.startRideListener();
                 } else {
+                    // Acesso Negado: Redireciona para tela de bloqueio
                     document.querySelector('#screen-login').classList.remove('active');
                     document.querySelector('#screen-locked').classList.add('active');
                     document.getElementById('loading').style.display = 'none';
@@ -308,10 +341,12 @@
             }
         };
 
-        // Inicialização
+        // Inicialização Global
+        // Monitora o estado da autenticação (Persistência de Sessão)
         onAuthStateChanged(auth, (user) => {
-            if (user) App.checkLicense(user);
+            if (user) App.checkLicense(user); // Se tem usuário, verifica licença
             else {
+                // Se não tem usuário, força tela de login
                 document.getElementById('loading').style.display = 'none';
                 document.querySelector('#screen-dashboard').classList.remove('active');
                 document.querySelector('#screen-locked').classList.remove('active');
@@ -319,6 +354,7 @@
             }
         });
 
+        // Expor App para o escopo global (window) para acesso via HTML onclick
         window.app = App;
     </script>
 </body>
